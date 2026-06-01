@@ -1,0 +1,31 @@
+name: Test action
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Create a minimal sushi-config.yaml to test against
+      - name: Create test config
+        run: |
+          cat > sushi-config.yaml << 'EOF'
+          name: test-ig
+          dependencies:
+            hl7.fhir.us.core: 6.1.0
+            hl7.fhir.uv.sdc: current
+          EOF
+
+      - name: Run fhir-check
+        uses: ./
+        id: check
+        with:
+          sushi-config: sushi-config.yaml
+          fail-on-missing: true
+
+      - name: Print outputs
+        run: |
+          echo "Found: ${{ steps.check.outputs.deps-found }}"
+          echo "Missing: ${{ steps.check.outputs.deps-missing }}"
+          echo "Total: ${{ steps.check.outputs.deps-total }}"

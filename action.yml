@@ -1,0 +1,33 @@
+name: TorchLab FHIR Check
+description: Validate your FHIR IG dependencies against the TorchLab registry
+author: TorchLab
+
+inputs:
+  sushi-config:
+    description: Path to sushi-config.yaml (or package.json for non-SUSHI IGs)
+    required: false
+    default: sushi-config.yaml
+  fail-on-missing:
+    description: Fail the action if any dependency is not found in the registry
+    required: false
+    default: 'true'
+  fail-on-deprecated:
+    description: Fail the action if any dependency has had no new version in 2+ years
+    required: false
+    default: 'false'
+
+outputs:
+  deps-found:
+    description: Number of dependencies found in registry
+  deps-missing:
+    description: Number of dependencies not found in registry
+  deps-total:
+    description: Total number of dependencies checked
+
+runs:
+  using: node20
+  main: index.js
+
+branding:
+  icon: check-circle
+  color: orange
