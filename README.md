@@ -54,8 +54,6 @@ jobs:
 
 If one of your dependencies removes a version or is abandoned, you'll know before your IG Publisher build fails in production.
 
-Every badge embedded in an IG README using `torchlab/fhir-check` creates a live dependency on the TorchLab registry — which is the point.
-
----
+Every badge embedded in an IG README using `torchlab/fhir-check` creates a live dependency on the TorchLab registry.
 
 This action uses the [TorchLab Public API](https://torchlab.dev/docs/api). No token required.
