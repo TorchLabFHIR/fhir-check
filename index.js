@@ -8,7 +8,12 @@ const path   = require('path')
 
 // GitHub Actions core functions (inline to keep zero dependencies)
 function setOutput(name, value) {
-  process.stdout.write(`::set-output name=${name}::${value}\n`)
+  const outFile = process.env.GITHUB_OUTPUT
+  if (outFile) {
+    fs.appendFileSync(outFile, `${name}=${value}\n`)
+  } else {
+    process.stdout.write(`::set-output name=${name}::${value}\n`)
+  }
 }
 function info(msg)    { console.log(msg) }
 function warning(msg) { process.stdout.write(`::warning::${msg}\n`) }
@@ -19,17 +24,24 @@ function getInput(name, def = '') {
 }
 
 const RESET = '\x1b[0m', GREEN = '\x1b[32m', YELLOW = '\x1b[33m', CYAN = '\x1b[36m', BOLD = '\x1b[1m', DIM = '\x1b[2m'
-const API   = 'https://torchlab.dev/api/v1'
+const API   = 'https://www.torchlab.dev/api/v1'
 
 function fetchJson(url) {
   return new Promise((resolve, reject) => {
-    https.get(url, { headers: { 'User-Agent': 'torchlab-fhir-check/1.0 (GitHub Action)' } }, res => {
+    const opts = { headers: { 'User-Agent': 'torchlab-fhir-check/1.0 (GitHub Action)' } }
+    const req = https.get(url, opts, res => {
+      // Follow 301/302/307/308 redirects
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume()
+        return resolve(fetchJson(res.headers.location))
+      }
       let body = ''
       res.on('data', d => body += d)
       res.on('end', () => {
-        try { resolve(JSON.parse(body)) } catch { reject(new Error('Invalid JSON')) }
+        try { resolve(JSON.parse(body)) } catch { reject(new Error(`Invalid JSON from ${url} (status ${res.statusCode})`)) }
       })
     }).on('error', reject)
+    req.setTimeout(10_000, () => req.destroy(new Error(`Registry request timed out: ${url}`)))
   })
 }
 
@@ -151,4 +163,6 @@ async function run() {
   }
 }
 
-run().catch(e => setFailed(e.message))
+if (require.main === module) run().catch(e => setFailed(e.message))
+
+module.exports = { parseDepsFromSushiConfig, parseDepsFromPackageJson, CORE_SKIP, getInput, setOutput, fetchJson }

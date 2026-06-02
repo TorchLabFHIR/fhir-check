@@ -1,0 +1,13 @@
+{
+  "name": "@torchlab/fhir-check",
+  "version": "1.0.0",
+  "description": "TorchLab FHIR Check — GitHub Action",
+  "scripts": {
+    "test": "node --test",
+    "test:unit": "node --test tests/unit",
+    "test:integration": "node --test tests/integration"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
