@@ -2,9 +2,10 @@
 // TorchLab FHIR Check — GitHub Action entry point
 // Validates sushi-config.yaml dependencies against the TorchLab registry
 
-const https  = require('https')
-const fs     = require('fs')
-const path   = require('path')
+const https      = require('https')
+const fs         = require('fs')
+const path       = require('path')
+const { execSync } = require('child_process')
 
 // GitHub Actions core functions (inline to keep zero dependencies)
 function setOutput(name, value) {
@@ -64,6 +65,49 @@ function parseDepsFromSushiConfig(file) {
 function parseDepsFromPackageJson(file) {
   const pkg = JSON.parse(fs.readFileSync(file, 'utf8'))
   return pkg.dependencies ?? {}
+}
+
+// Pure helper — replaces placeholder badge URLs; testable without I/O
+function applyBadgePatch(content, repo) {
+  return content.replace(
+    /https:\/\/github\.com\/YOUR_ORG\/YOUR_REPO\/actions\/workflows\/fhir-check\.yml/g,
+    `https://github.com/${repo}/actions/workflows/fhir-check.yml`
+  )
+}
+
+function patchReadmeBadge(repo = process.env.GITHUB_REPOSITORY) {
+  if (!repo) return false
+
+  const candidates = ['README.md', 'readme.md', 'README', 'README.rst']
+  const readmeFile = candidates.find(f => fs.existsSync(f))
+  if (!readmeFile) return false
+
+  const original = fs.readFileSync(readmeFile, 'utf8')
+  const patched  = applyBadgePatch(original, repo)
+  if (patched === original) return false
+
+  fs.writeFileSync(readmeFile, patched, 'utf8')
+  info(`  ${GREEN}✔${RESET}  Patched ${readmeFile}: YOUR_ORG/YOUR_REPO → ${repo}`)
+
+  try {
+    const git = cmd => execSync(cmd, { stdio: 'pipe' })
+    git('git config user.name "github-actions[bot]"')
+    git('git config user.email "41898282+github-actions[bot]@users.noreply.github.com"')
+    git(`git add "${readmeFile}"`)
+    // No-op if nothing staged (placeholder was already fixed by a prior run)
+    execSync(
+      'git diff --cached --quiet || git commit -m "fix(readme): patch fhir-check badge URL [skip ci]"',
+      { stdio: 'pipe', shell: true }
+    )
+    git('git push')
+    info(`  ${GREEN}✔${RESET}  Badge URL committed and pushed`)
+  } catch (e) {
+    fs.writeFileSync(readmeFile, original, 'utf8')
+    warning('README badge patched but could not be committed automatically. ' +
+      'Add "permissions: contents: write" to your workflow job.')
+  }
+
+  return true
 }
 
 // Packages that are always present — skip checking them
@@ -155,6 +199,8 @@ async function run() {
   setOutput('deps-missing', String(missing))
   setOutput('deps-total',   String(deps.length))
 
+  if (getInput('patch-readme', 'true') !== 'false') patchReadmeBadge()
+
   if (missing > 0 && failOnMissing) {
     setFailed(`${missing} FHIR ${missing === 1 ? 'dependency' : 'dependencies'} not found in the TorchLab registry.`)
   }
@@ -165,4 +211,4 @@ async function run() {
 
 if (require.main === module) run().catch(e => setFailed(e.message))
 
-module.exports = { parseDepsFromSushiConfig, parseDepsFromPackageJson, CORE_SKIP, getInput, setOutput, fetchJson }
+module.exports = { parseDepsFromSushiConfig, parseDepsFromPackageJson, CORE_SKIP, getInput, setOutput, fetchJson, applyBadgePatch, patchReadmeBadge }

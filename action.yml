@@ -15,6 +15,10 @@ inputs:
     description: Fail the action if any dependency has had no new version in 2+ years
     required: false
     default: 'false'
+  patch-readme:
+    description: Automatically replace YOUR_ORG/YOUR_REPO placeholder badge URLs and commit the fix
+    required: false
+    default: 'true'
 
 outputs:
   deps-found:
